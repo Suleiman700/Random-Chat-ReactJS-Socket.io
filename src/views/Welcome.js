@@ -112,6 +112,8 @@ const Welcome = () => {
                 // Handle callback
                 const state = response['state']
 
+                console.log(state)
+
                 if (state) {
                     setCbMSG('')
                     history.push('/app/chat');
@@ -124,6 +126,11 @@ const Welcome = () => {
             });
         }
     }
+
+
+    socket.on('test', () => {
+        alert('here')
+    })
 
 
     return (

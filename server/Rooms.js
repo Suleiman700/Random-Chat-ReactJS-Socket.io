@@ -7,11 +7,16 @@ class Rooms {
     }
 
     /**
-     * Put user into a room
+     * Put user into a queue room
      * @param _socket_id {String}
      * @param _socket_name {String}
+     * @param _room_id {Number}
      */
-    put_user_into_queue_room(_socket_id, _socket_name) {
+    put_user_into_queue_room(_socket_id, _socket_name, _room_id) {
+        const response = {
+            state: null
+        }
+
         // Check if user is in queue room
         const already_in_queue = this.if_user_in_queue_room(_socket_id)
 
@@ -19,15 +24,44 @@ class Rooms {
             const user_data = {
                 socket_id: _socket_id,
                 socket_name: _socket_name,
-                room_id: this.queue_rooms.length
+                room_id: _room_id
             }
 
             this.queue_rooms.push(user_data)
 
-            return user_data
+            response['state'] = true
         }
 
-        console.log(this.queue_rooms)
+        return response
+    }
+
+    /**
+     * Put user into a chat room
+     * @param _socket_id {String}
+     * @param _socket_name {String}
+     * @param _room_id {Number}
+     */
+    put_user_into_chat_room(_socket_id, _socket_name, _room_id) {
+        const response = {
+            state: null
+        }
+
+        // Check if user is in queue room
+        const already_in_chat = this.if_user_in_chat_room(_socket_id)
+
+        if (!already_in_chat) {
+            const user_data = {
+                socket_id: _socket_id,
+                socket_name: _socket_name,
+                room_id: _room_id
+            }
+
+            this.chat_rooms.push(user_data)
+
+            response['state'] = true
+        }
+
+        return response
     }
 
     /**
@@ -59,12 +93,47 @@ class Rooms {
     }
 
     /**
+     * Check if user is in chat room
+     * @param _socket_id {String}
+     */
+    if_user_in_chat_room(_socket_id) {
+        let found = false
+        const data = this.chat_rooms.find(chat_room => {
+            return chat_room['socket_id'] === _socket_id
+        })
+        if (data) found = true
+
+        return found
+    }
+
+    /**
      * Get user info based on his socket id
      * @param _socket_id {String}
      */
     get_user_info(_socket_id) {
 
     }
+
+    // Find if there are available queue rooms
+    fid_available_queue_rooms() {
+        const response = {
+            found: null,
+            room_data: null
+        }
+
+        // Count queue rooms
+        const count = this.queue_rooms.length
+        if (count) {
+            // Get first queue room
+            const room = this.queue_rooms[0]
+
+            response['found'] = true
+            response['room_data'] = room
+        }
+
+        return response
+    }
+
 }
 
 const Rooms_C = new Rooms()
