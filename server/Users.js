@@ -19,8 +19,6 @@ class Users {
             room_id: _room_id,
             room_type: _room_type
         })
-
-        console.log(this.users)
     }
 
     get_user_data(_socket_id) {
@@ -80,6 +78,16 @@ class Users {
                 user['room_type'] = _room_type
             }
         })
+    }
+
+    /**
+     * Delete user data > Used when user disconnect or similar actions
+     * @param _socket_id {String}
+     */
+    delete_user_data(_socket_id) {
+        this.users = this.users.filter((room) => {
+            return room['socket_id'] !== _socket_id
+        });
     }
 
 

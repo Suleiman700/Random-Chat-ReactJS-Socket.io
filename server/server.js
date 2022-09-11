@@ -58,9 +58,26 @@ io.on("connection", (socket) => {
         console.log("Client disconnected");
         clearInterval(interval);
 
+        // Tel the other user that this user has left the room
+        io.to(socket.roomid).emit('other_left_the_room', {});
+
         // Remove user from all rooms
         Rooms_C.remove_user_from_all_room(socket.id)
+
+        // Delete user data
+        Users_C.delete_user_data(socket.id)
     });
+
+    // Make user leave the chat room
+    socket.on('make_me_leave_chat_room', () => {
+        // Update user room type
+        Users_C.update_user_room_type(socket.id, 'queue')
+
+        // Reset socket room id
+        const socket_roomid = socket.roomid
+        socket.roomid = null
+        socket.leave(socket_roomid)
+    })
 
     // Check if user has joined a room
     socket.on('check_if_user_in_queue', (data, cb) => {
@@ -73,7 +90,7 @@ io.on("connection", (socket) => {
 
         // Check if user found
         const result = Users_C.get_user_data(socket.id)
-        console.log(result)
+
         if (result['found']) {
             // Check if user is in queue
             if (result['data']['room_type'] === 'queue') {
@@ -125,8 +142,42 @@ io.on("connection", (socket) => {
         console.log(`User ${socket.name} has joined the room ${new_roomid}`)
     })
 
+    // User clicked 'Find Another' button
+    socket.on('find_another_person_to_chat_with', () => {
+
+        // Change user room type
+        Users_C.update_user_room_type(socket.id, 'queue')
+
+        // Reset socket room id
+        const socket_roomid = socket.roomid
+        socket.roomid = null
+        socket.leave(socket_roomid)
+
+        // Tel the other user that this user has left the room
+        io.to(socket_roomid).emit('other_left_the_room', {});
+
+        // Remove user from all rooms
+        Rooms_C.remove_user_from_all_room(socket.id)
+
+        // Delete user data
+        Users_C.delete_user_data(socket.id)
+    })
+
     // Find someone to chat with
-    socket.on('find_someone_to_chat_with', () => {
+    socket.on('find_someone_to_chat_with', (data, cb) => {
+        const response = {
+            found: null,
+            someone_name: null
+        }
+
+        // Change user room type
+        Users_C.update_user_room_type(socket.id, 'queue')
+
+        // Reset socket room id
+        const socket_roomid = socket.roomid
+        socket.roomid = null
+        socket.leave(socket_roomid)
+
         // Find someone
         const result = Users_C.find_user_in_queue(socket.id)
 
@@ -136,18 +187,24 @@ io.on("connection", (socket) => {
 
             const someone_data = result['data']
 
+            response['found'] = true
+            response['someone_name'] = someone_data['socket_name']
+
+
             // Update user's room type
             // Users_C.update_user_room_type(socket.id, 'chat')
 
-            const new_roomid = 5
+            const new_roomid = Rooms_C.chat_rooms.length
 
-            // Let user join room
+            // Let user join room (Who clicked the find button)
             io.to(socket.id).emit('do_join_roomid', {
+                other_name: someone_data['socket_name'],
                 new_roomid: new_roomid,
             });
 
-            // Let someone join room
+            // Let someone join room (Who got matched with the user that clicked the button)
             io.to(someone_data['socket_id']).emit('do_join_roomid', {
+                other_name: socket.name,
                 new_roomid: new_roomid,
             });
         }
@@ -156,6 +213,8 @@ io.on("connection", (socket) => {
         else {
             console.log('Did not find someone to chat with')
         }
+
+        cb(response);
     })
 
     socket.on('join', (data, cb) => {
@@ -257,6 +316,8 @@ io.on("connection", (socket) => {
         }
 
         // console.log('User joined room:', socket.roomid)
+
+        console.log(`User ${socket.name} joined room ${socket.roomid}`)
 
         cb(response);
     })

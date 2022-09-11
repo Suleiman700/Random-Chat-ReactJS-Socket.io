@@ -38,6 +38,8 @@ import socket from 'Socket'
 
 const Welcome = () => {
 
+    let client_name = ''
+
     const history = useHistory();
     const [clientName, setClientName] = useState(''); // Client name
     const [otherName, setOtherName] = useState(''); // Other name
@@ -95,8 +97,49 @@ const Welcome = () => {
             else {
                 const name = user_data['name']
                 setClientName(name)
+                client_name = name
             }
         });
+
+        // Join new room id
+        socket.on('do_join_roomid', (data) => {
+            console.log('request from server to join a roomid')
+
+
+            const other_name = data['other_name']
+            const new_roomid = data['new_roomid']
+
+            socket.emit("actually_join_roomid", {
+                new_roomid: new_roomid
+            });
+
+            setSendMsgSectionEnabled(true) // Enable send message section
+            setOtherName(other_name) // Set other name
+
+            document.getElementById('waiting_for_text').innerHTML = `${other_name} Has joined the chat`
+
+            // Clear old messages
+            document.getElementById('messages_section').innerHTML = ''
+        })
+
+        socket.on('receive_message', (data) => {
+            receiveMessage(data)
+        })
+
+        // Set other user
+        socket.on('set_other_name', (data) => {
+            const other_name = data['other_name']
+            setOtherName(other_name)
+        })
+
+        // Other user has left the chat
+        socket.on('other_left_the_room', () => {
+            setOtherName('') // Clear other name
+            setSendMsgSectionEnabled(false) // Disable send message section
+            document.getElementById('waiting_for_text').innerHTML = `The other person has left the room...`
+
+            // socket.emit('make_me_leave_chat_room')
+        })
 
     }, []);
 
@@ -125,12 +168,12 @@ const Welcome = () => {
                 sender_name: clientName,
                 message: message.value
             });
+
+            // Clear message input value
+            message.value = ''
         }
     }
 
-    socket.on('receive_message', (data) => {
-        receiveMessage(data)
-    })
 
     // Get user socket's room id
     const get_socket_roomid = () => {
@@ -139,18 +182,18 @@ const Welcome = () => {
 
     // Find someone to chat
     const find_someone_to_chat_with = () => {
-        socket.emit("find_someone_to_chat_with", {});
-    }
+        socket.emit("find_someone_to_chat_with", {}, (response) => {
 
-    // Join new room id
-    socket.on('do_join_roomid', (data) => {
-        const new_roomid = data['new_roomid']
-        socket.emit("actually_join_roomid", {
-            new_roomid: new_roomid
+            // Check if found someone to chat with
+            // if (response['found']) {
+            //     const someone_name = response['someone_name']
+            //     setOtherName(someone_name)
+            //     document.getElementById('waiting_for_text').innerHTML = `${someone_name} Has joined the chat`
+            // }
         });
 
-        setSendMsgSectionEnabled(true)
-    })
+        document.getElementById('waiting_for_text').innerHTML = `Waiting for someone to chat with...Please wait`
+    }
 
     /**
      * Receive message from socket
@@ -162,15 +205,19 @@ const Welcome = () => {
 
         // Determine who's the sender
         let sender = null
-        if (sender_name === clientName) sender = 'client'
+        // if (sender_name === clientName) sender = 'client'
+        if (sender_name === client_name) sender = 'client'
         else sender = 'other'
 
         // Set message time
         const date = new Date();
-        const time = `${date.getHours()}:${date.getMinutes()}`
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const time = `${hours}:${minutes}`
 
         // Add message to message section
         const messages_section = document.getElementById('messages_section')
+
 
         let msg_html = ''
         if (sender === 'client') {
@@ -189,7 +236,7 @@ const Welcome = () => {
         if (sender === 'other') {
             msg_html = `
                 <div class="media media-chat">
-                    <button class="btn btn-success" disabled>${sender_name}</button>
+                    <button class="btn btn-primary" disabled>${sender_name}</button>
                     <div class="media-body mx-3">
                         <div class="mb-3">
                             <p class="msg_line">${message}</p>
@@ -202,7 +249,20 @@ const Welcome = () => {
         messages_section.insertAdjacentHTML('beforeend', msg_html);
     }
 
+    const findAnotherPerson = () => {
+        socket.emit("find_another_person_to_chat_with", {})
 
+        document.getElementById('waiting_for_text').innerHTML = `You have left the room!`
+        
+        setOtherName('') // Clear other person name
+        setSendMsgSectionEnabled(false)
+    }
+
+    const waiting = () => {
+        return (
+            <span className="spinner-grow spinner-grow-sm mx-1" role="status" aria-hidden="true">Waiting...</span>
+        )
+    }
 
 
     return (
@@ -238,6 +298,40 @@ const Welcome = () => {
                                     <Col xs="6">
                                         <div className="card">
                                             <div className="card-body text-center">
+                                                <div className="row text-center d-flex align-items-center text-center">
+                                                    <Col>
+                                                        <img
+                                                            src="https://doodleipsum.com/700/avatar-2"
+                                                            className="img-fluid profile-image"
+                                                            width="70"
+                                                            style={style['other_img_style']}
+                                                        />
+                                                    </Col>
+                                                    <Col className="d-flex align-items-center">
+                                                        <div className="row">
+                                                            <Col xs="12">
+                                                                <strong className="text-primary">Other</strong>
+                                                            </Col>
+                                                            <Col xs="12 text-primary">
+                                                                {otherName?
+                                                                    otherName:
+                                                                    <div>
+                                                                        ---
+                                                                        {/*<button className="btn btn-primary" type="button" disabled>*/}
+                                                                        {/*    <span className="spinner-grow spinner-grow-sm mx-1" role="status" aria-hidden="true" />Waiting...*/}
+                                                                        {/*</button>*/}
+                                                                    </div>
+                                                                }
+                                                            </Col>
+                                                        </div>
+                                                    </Col>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Col>
+                                    <Col xs="6">
+                                        <div className="card">
+                                            <div className="card-body text-center">
                                                 <div className="row">
                                                     <Col>
                                                         <img src="https://doodleipsum.com/500/avatar-2" className="img-fluid profile-image" width="70" />
@@ -256,73 +350,18 @@ const Welcome = () => {
                                             </div>
                                         </div>
                                     </Col>
-                                    <Col xs="6">
-                                        <div className="card">
-                                            <div className="card-body text-center">
-                                                <div className="row text-center d-flex align-items-center text-center">
-                                                    <Col>
-                                                        <img
-                                                            src="https://doodleipsum.com/700/avatar-2"
-                                                            className="img-fluid profile-image"
-                                                            width="70"
-                                                            style={style['other_img_style']}
-                                                        />
-                                                    </Col>
-                                                    <Col className="d-flex align-items-center">
-                                                        <div className="row">
-                                                            <Col xs="12">
-                                                                <strong className="text-primary">Other</strong>
-                                                            </Col>
-                                                            <Col xs="12">
-                                                                <button className="btn btn-primary" type="button" disabled>
-                                                                    <span className="spinner-grow spinner-grow-sm mx-1" role="status" aria-hidden="true"/>
-                                                                    Waiting...
-                                                                </button>
-                                                            </Col>
-                                                        </div>
-                                                    </Col>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Col>
                                 </div>
                             </Col>
                         </div>
 
                         <div className="container">
                             <div className="mb-5">
-                                <div className="card px-3 py-3" id="messages_section" style={{height: '50vh', overflowY: 'auto'}}>
-                                    <button className="btn btn-secondary" type="button" disabled>
-                                        <span className="spinner-grow spinner-grow-sm mx-1" role="status" aria-hidden="true"/>
-                                        Waiting for someone to join...
+                                <div className="card px-3 py-3" style={{height: '50vh', overflowY: 'auto'}}>
+                                    <button className="btn btn-secondary" type="button" id="waiting_for_text" disabled>
+                                        <span className="spinner-grow spinner-grow-sm mx-1" role="status" aria-hidden="true" />
+                                        No one has been joined yet...
                                     </button>
-                                    {/*<div className="media media-chat">*/}
-                                    {/*    /!*<img className="avatar" src="https://img.icons8.com/color/36/000000/administrator-male.png" alt="..." />*!/*/}
-                                    {/*    <button className="btn btn-primary" disabled>Other</button>*/}
-                                    {/*    <div className="media-body mx-3">*/}
-                                    {/*        <div className="mb-3">*/}
-                                    {/*            <p style={style.chat_message}>Hi</p>*/}
-                                    {/*            <small className="text-muted px-3">12:34</small>*/}
-                                    {/*        </div>*/}
-                                    {/*        <div className="mb-3">*/}
-                                    {/*            <p style={style.chat_message}>How are you doing ?</p>*/}
-                                    {/*            <small className="text-muted px-3">12:34</small>*/}
-                                    {/*        </div>*/}
-                                    {/*    </div>*/}
-                                    {/*</div>*/}
-                                    {/*<div className="media media-chat">*/}
-                                    {/*    <div className="media-body mx-3">*/}
-                                    {/*        <div className="mb-3">*/}
-                                    {/*            <p style={style.chat_message}>Hello friend :)</p>*/}
-                                    {/*            <small className="text-muted px-3">12:34</small>*/}
-                                    {/*        </div>*/}
-                                    {/*        <div className="mb-3">*/}
-                                    {/*            <p style={style.chat_message}>How are you doing ?</p>*/}
-                                    {/*            <small className="text-muted px-3">12:34</small>*/}
-                                    {/*        </div>*/}
-                                    {/*    </div>*/}
-                                    {/*    <button className="btn btn-success" disabled>You</button>*/}
-                                    {/*</div>*/}
+                                    <div id="messages_section"></div>
                                 </div>
                             </div>
 
@@ -347,6 +386,9 @@ const Welcome = () => {
                                 <div className="text-center">
                                     <Button className="mt-4" color="primary" type="button" onClick={() => sendMessage()}>
                                         Send Message
+                                    </Button>
+                                    <Button className="mt-4" color="danger" type="button" onClick={() => findAnotherPerson()}>
+                                        Find Another
                                     </Button>
                                 </div>
                             </div>
