@@ -11,3 +11,7 @@ Built using ReactJs & Socket.io.
 2. Open project with your favorite IDE.
 3. To start ReactJS server > run `npm start` inside the root of the project
 4. To start Express & Socket.io server > `cd server` then `node server.js`
+
+---
+
+Project template is based on `Argon Dashboard React` and its documents can be found in the project files
